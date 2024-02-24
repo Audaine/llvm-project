@@ -13,6 +13,7 @@
 
 #include "llvm/Support/Endian.h"
 #include "llvm/Support/FileSystem.h"
+#include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Mutex.h"
 #include "llvm/Support/Process.h"
@@ -21,7 +22,8 @@
 
 using namespace llvm;
 
-static sys::SmartMutex<true> OutputMutex;
+// Prevents global-ctor and lets CodeGenCoverage maintain its threaded locking
+static ManagedStatic<sys::SmartMutex<true>> OutputMutex;
 
 CodeGenCoverage::CodeGenCoverage() = default;
 
@@ -79,7 +81,7 @@ bool CodeGenCoverage::parse(MemoryBuffer &Buffer, StringRef BackendName) {
 bool CodeGenCoverage::emit(StringRef CoveragePrefix,
                            StringRef BackendName) const {
   if (!CoveragePrefix.empty() && !RuleCoverage.empty()) {
-    sys::SmartScopedLock<true> Lock(OutputMutex);
+    sys::SmartScopedLock<true> Lock(*OutputMutex);
 
     // We can handle locking within a process easily enough but we don't want to
     // manage it between multiple processes. Use the process ID to ensure no
