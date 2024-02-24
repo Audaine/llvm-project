@@ -14,7 +14,3 @@ enabled = true
 [analyzers.meta]
   misra_compliance = true
   cyclomatic_complexity_threshold = "medium"
-
-[[transformers]]
-name = "clang-format"
-enabled = true
