@@ -1,7 +1,7 @@
 version = 1
 
 test_patterns = \[  
-  "**/test/\*\*"
+  "**/test/**"
 ]
 
 exclude_patterns = [
@@ -15,5 +15,6 @@ enabled = true
   misra_compliance = true
   cyclomatic_complexity_threshold = "medium"
 
+[[transformers]]
 name = "clang-format"
 enabled = true
