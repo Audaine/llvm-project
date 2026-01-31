@@ -12,12 +12,15 @@
 
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
 
+#include "mlir/Dialect/Ptr/IR/MemorySpaceInterfaces.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/DialectImplementation.h"
 #include "mlir/IR/MLIRContext.h"
+#include "mlir/Support/LLVM.h"
 #include "clang/Basic/AddressSpaces.h"
 #include "clang/CIR/Dialect/IR/CIRAttrs.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
+#include "clang/CIR/Dialect/IR/CIROpsEnums.h"
 #include "clang/CIR/Dialect/IR/CIRTypesDetails.h"
 #include "clang/CIR/MissingFeatures.h"
 #include "llvm/ADT/APInt.h"
@@ -941,6 +944,12 @@ void cir::VectorType::print(mlir::AsmPrinter &odsPrinter) const {
 // AddressSpace definitions
 //===----------------------------------------------------------------------===//
 
+bool cir::isSupportedCIRMemorySpaceAttr(
+    mlir::ptr::MemorySpaceAttrInterface memorySpace) {
+  return mlir::isa<cir::LangAddressSpaceAttr, cir::TargetAddressSpaceAttr>(
+      memorySpace);
+}
+
 cir::LangAddressSpace cir::toCIRLangAddressSpace(clang::LangAS langAS) {
   using clang::LangAS;
   switch (langAS) {
@@ -999,8 +1008,7 @@ parseAddressSpaceValue(mlir::AsmParser &p,
     if (p.parseRParen())
       return p.emitError(loc, "expected ')'");
 
-    attr = cir::TargetAddressSpaceAttr::get(
-        p.getContext(), p.getBuilder().getUI32IntegerAttr(val));
+    attr = cir::TargetAddressSpaceAttr::get(p.getContext(), val);
     return mlir::success();
   }
 
@@ -1012,7 +1020,7 @@ parseAddressSpaceValue(mlir::AsmParser &p,
     mlir::FailureOr<cir::LangAddressSpace> result =
         mlir::FieldParser<cir::LangAddressSpace>::parse(p);
     if (mlir::failed(result))
-      return p.emitError(loc, "expected language address space keyword");
+      return mlir::failure();
 
     if (p.parseRParen())
       return p.emitError(loc, "expected ')'");
@@ -1020,6 +1028,12 @@ parseAddressSpaceValue(mlir::AsmParser &p,
     attr = cir::LangAddressSpaceAttr::get(p.getContext(), result.value());
     return mlir::success();
   }
+
+  llvm::StringRef keyword;
+  if (p.parseOptionalKeyword(&keyword).succeeded())
+    return p.emitError(loc, "unknown address space specifier '")
+           << keyword << "'; expected 'target_address_space' or "
+           << "'lang_address_space'";
 
   return mlir::success();
 }
@@ -1043,55 +1057,42 @@ void printAddressSpaceValue(mlir::AsmPrinter &p,
   llvm_unreachable("unexpected address-space attribute kind");
 }
 
-cir::TargetAddressSpaceAttr
-cir::toCIRTargetAddressSpace(mlir::MLIRContext &context, clang::LangAS langAS) {
-  return cir::TargetAddressSpaceAttr::get(
-      &context,
-      IntegerAttr::get(&context,
-                       llvm::APSInt(clang::toTargetAddressSpace(langAS))));
+mlir::ptr::MemorySpaceAttrInterface
+cir::toCIRAddressSpaceAttr(mlir::MLIRContext *ctx, clang::LangAS langAS) {
+  using clang::LangAS;
+
+  if (langAS == LangAS::Default)
+    return {}; // Default address space is represented as an empty attribute.
+
+  if (clang::isTargetAddressSpace(langAS)) {
+    unsigned targetAS = clang::toTargetAddressSpace(langAS);
+    return cir::TargetAddressSpaceAttr::get(ctx, targetAS);
+  }
+
+  return cir::LangAddressSpaceAttr::get(ctx, toCIRLangAddressSpace(langAS));
 }
 
-bool cir::isMatchingAddressSpace(cir::TargetAddressSpaceAttr cirAS,
+bool cir::isMatchingAddressSpace(mlir::MLIRContext &ctx,
+                                 mlir::ptr::MemorySpaceAttrInterface cirAS,
                                  clang::LangAS as) {
-  // If there is no CIR target attr, consider it "default" and only match
-  // when the AST address space is LangAS::Default.
-  if (!cirAS)
-    return as == clang::LangAS::Default;
-
-  if (!isTargetAddressSpace(as))
-    return false;
-
-  return cirAS.getValue().getUInt() == toTargetAddressSpace(as);
+  return cir::toCIRAddressSpaceAttr(&ctx, as) == cirAS;
 }
 
-mlir::ParseResult parseTargetAddressSpace(mlir::AsmParser &p,
-                                          cir::TargetAddressSpaceAttr &attr) {
-  if (failed(p.parseKeyword("target_address_space")))
-    return mlir::failure();
+//===----------------------------------------------------------------------===//
+// PointerType Definitions
+//===----------------------------------------------------------------------===//
 
-  if (failed(p.parseLParen()))
-    return mlir::failure();
+mlir::LogicalResult cir::PointerType::verify(
+    llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
+    mlir::Type pointee, mlir::ptr::MemorySpaceAttrInterface addrSpace) {
+  if (addrSpace) {
+    if (!isSupportedCIRMemorySpaceAttr(addrSpace)) {
+      return emitError() << "unsupported address space attribute; expected "
+                            "'target_address_space' or 'lang_address_space'";
+    }
+  }
 
-  int32_t targetValue;
-  if (failed(p.parseInteger(targetValue)))
-    return p.emitError(p.getCurrentLocation(),
-                       "expected integer address space value");
-
-  if (failed(p.parseRParen()))
-    return p.emitError(p.getCurrentLocation(),
-                       "expected ')' after address space value");
-
-  mlir::MLIRContext *context = p.getBuilder().getContext();
-  attr = cir::TargetAddressSpaceAttr::get(
-      context, p.getBuilder().getUI32IntegerAttr(targetValue));
-  return mlir::success();
-}
-
-// The custom printer for the `addrspace` parameter in `!cir.ptr`.
-// in the format of `target_address_space(N)`.
-void printTargetAddressSpace(mlir::AsmPrinter &p,
-                             cir::TargetAddressSpaceAttr attr) {
-  p << "target_address_space(" << attr.getValue().getUInt() << ")";
+  return success();
 }
 
 //===----------------------------------------------------------------------===//
