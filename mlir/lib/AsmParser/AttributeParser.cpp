@@ -16,6 +16,7 @@
 #include "mlir/IR/AffineMap.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinDialect.h"
+#include "mlir/IR/BuiltinTypeInterfaces.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/DialectResourceBlobManager.h"
 #include "mlir/IR/IntegerSet.h"
@@ -954,6 +955,42 @@ Attribute Parser::parseDenseArrayAttr(Type attrType) {
   return eltParser.getAttr();
 }
 
+/// Check if the current token can start a type (for type-first dense syntax).
+static bool canStartType(Token tok) {
+  switch (tok.getKind()) {
+  case Token::kw_memref:
+  case Token::kw_tensor:
+  case Token::kw_complex:
+  case Token::kw_tuple:
+  case Token::kw_vector:
+  case Token::inttype:
+  case Token::kw_f4E2M1FN:
+  case Token::kw_f6E2M3FN:
+  case Token::kw_f6E3M2FN:
+  case Token::kw_f8E5M2:
+  case Token::kw_f8E4M3:
+  case Token::kw_f8E4M3FN:
+  case Token::kw_f8E5M2FNUZ:
+  case Token::kw_f8E4M3FNUZ:
+  case Token::kw_f8E4M3B11FNUZ:
+  case Token::kw_f8E3M4:
+  case Token::kw_f8E8M0FNU:
+  case Token::kw_bf16:
+  case Token::kw_f16:
+  case Token::kw_tf32:
+  case Token::kw_f32:
+  case Token::kw_f64:
+  case Token::kw_f80:
+  case Token::kw_f128:
+  case Token::kw_index:
+  case Token::kw_none:
+  case Token::exclamation_identifier:
+    return true;
+  default:
+    return false;
+  }
+}
+
 /// Parse a dense elements attribute.
 Attribute Parser::parseDenseElementsAttr(Type attrType) {
   auto attribLoc = getToken().getLoc();
@@ -961,7 +998,12 @@ Attribute Parser::parseDenseElementsAttr(Type attrType) {
   if (parseToken(Token::less, "expected '<' after 'dense'"))
     return nullptr;
 
-  // Parse the literal data if necessary.
+  // Check for the new type-first syntax: dense<TYPE : [ATTR, ...]>
+  // This is used for element types implementing DenseElementTypeInterface.
+  if (canStartType(getToken()))
+    return parseDenseElementsAttrTyped(attribLoc);
+
+  // Parse the literal data if necessary (old syntax: dense<LITERAL> : TYPE).
   TensorLiteralParser literalParser(*this);
   if (!consumeIf(Token::greater)) {
     if (literalParser.parse(/*allowHex=*/true) ||
@@ -973,6 +1015,118 @@ Attribute Parser::parseDenseElementsAttr(Type attrType) {
   if (!type)
     return nullptr;
   return literalParser.getAttr(attribLoc, type);
+}
+
+/// Parse a dense elements attribute with the type-first syntax.
+/// Syntax: dense<TYPE : [ATTR, ATTR, ...]>
+/// This is used for element types implementing DenseElementTypeInterface.
+Attribute Parser::parseDenseElementsAttrTyped(SMLoc loc) {
+  // Parse the shaped type.
+  Type type = parseType();
+  if (!type)
+    return nullptr;
+
+  auto shapedType = dyn_cast<ShapedType>(type);
+  if (!shapedType) {
+    emitError(loc, "expected a shaped type for dense elements");
+    return nullptr;
+  }
+
+  if (!shapedType.hasStaticShape()) {
+    emitError(loc, "dense elements type must have static shape");
+    return nullptr;
+  }
+
+  // Check that the element type implements DenseElementTypeInterface.
+  Type eltType = shapedType.getElementType();
+  auto denseEltType = dyn_cast<DenseElementType>(eltType);
+  if (!denseEltType) {
+    emitError(loc, "element type must implement DenseElementTypeInterface for "
+                   "type-first dense syntax");
+    return nullptr;
+  }
+
+  if (parseToken(Token::colon, "expected ':' after type in dense attribute"))
+    return nullptr;
+
+  // Parse the element attributes and convert to raw bytes.
+  SmallVector<char> rawData;
+  size_t byteSize = denseEltType.getDenseElementByteSize();
+  int64_t numElements = shapedType.getNumElements();
+  SmallVector<int64_t, 4> shape;
+
+  // Helper to parse a single element or nested list.
+  std::function<ParseResult(SmallVectorImpl<int64_t> &)> parseElements;
+  parseElements = [&](SmallVectorImpl<int64_t> &dims) -> ParseResult {
+    // Check for nested list.
+    if (getToken().is(Token::l_square)) {
+      SmallVector<int64_t, 4> prevDims;
+      bool first = true;
+      unsigned size = 0;
+      auto parseOneElement = [&]() -> ParseResult {
+        SmallVector<int64_t, 4> thisDims;
+        if (parseElements(thisDims))
+          return failure();
+        ++size;
+        if (!first && prevDims != thisDims) {
+          emitError("tensor literal has inconsistent ranks between elements");
+          return failure();
+        }
+        prevDims = thisDims;
+        first = false;
+        return success();
+      };
+      if (parseCommaSeparatedList(Delimiter::Square, parseOneElement))
+        return failure();
+      dims.clear();
+      dims.push_back(size);
+      dims.append(prevDims.begin(), prevDims.end());
+      return success();
+    }
+
+    // Parse a single element attribute.
+    Attribute elemAttr = parseAttribute();
+    if (!elemAttr)
+      return failure();
+
+    // Convert attribute to raw bytes using the interface.
+    if (failed(denseEltType.convertFromAttribute(elemAttr, rawData))) {
+      emitError("incompatible attribute for element type");
+      return failure();
+    }
+
+    // Single element has empty dims (will be combined by parent).
+    dims.clear();
+    return success();
+  };
+
+  // Parse the elements.
+  if (parseElements(shape))
+    return nullptr;
+
+  // Verify the shape matches (if non-empty shape was inferred).
+  if (!shape.empty() && shape != ArrayRef(shapedType.getShape())) {
+    emitError(loc) << "inferred shape of elements literal ([" << shape
+                   << "]) does not match type ([" << shapedType.getShape()
+                   << "])";
+    return nullptr;
+  }
+
+  // Handle splat detection: if only one element was parsed, it's a splat.
+  bool isSplat = (rawData.size() == byteSize && numElements != 1);
+  if (isSplat) {
+    // For splat, we only store one element.
+  } else if (rawData.size() != byteSize * numElements) {
+    emitError(loc) << "parsed " << (rawData.size() / byteSize)
+                   << " elements, but type expects " << numElements;
+    return nullptr;
+  }
+
+  if (parseToken(Token::greater, "expected '>' to close dense attribute"))
+    return nullptr;
+
+  // Create the attribute from raw buffer.
+  return DenseElementsAttr::getFromRawBuffer(shapedType, rawData);
 }
 
 Attribute Parser::parseDenseResourceElementsAttr(Type attrType) {

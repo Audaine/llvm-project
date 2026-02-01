@@ -290,6 +290,11 @@ public:
   Attribute parseDenseElementsAttr(Type attrType);
   ShapedType parseElementsLiteralType(SMLoc loc, Type type);
 
+  /// Parse a dense elements attribute with type-first syntax.
+  /// This is used for element types that implement DenseElementTypeInterface.
+  /// Syntax: dense<TYPE : [ATTR, ATTR, ...]>
+  Attribute parseDenseElementsAttrTyped(SMLoc loc);
+
   /// Parse a dense resource elements attribute.
   Attribute parseDenseResourceElementsAttr(Type attrType);
 

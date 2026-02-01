@@ -111,6 +111,25 @@ def MemRefElementTypeInterface : TypeInterface<"MemRefElementTypeInterface"> {
 }
 
 //===----------------------------------------------------------------------===//
+// TensorElementTypeInterface
+//===----------------------------------------------------------------------===//
+
+def TensorElementTypeInterface : TypeInterface<"TensorElementTypeInterface"> {
+  let cppNamespace = "::mlir";
+  let description = [{
+    Indication that this type can be used as element in tensor types.
+
+    Implementing this interface establishes a contract between this type and
+    tensor types (RankedTensorType, UnrankedTensorType), indicating that this
+    type can be used as an element type of tensors.
+
+    The interface currently has no methods and is used by types to opt into
+    being tensor elements. This may change in the future, in particular to
+    require types to provide their size given a data layout.
+  }];
+}
+
+//===----------------------------------------------------------------------===//
 // PtrLikeTypeInterface
 //===----------------------------------------------------------------------===//
 
@@ -336,6 +355,63 @@ def ShapedTypeInterface : TypeInterface<"ShapedType"> {
                             ::mlir::ShapedType::isDynamic);
     }
   }];
+}
+
+//===----------------------------------------------------------------------===//
+// DenseElementTypeInterface
+//===----------------------------------------------------------------------===//
+
+def DenseElementTypeInterface : TypeInterface<"DenseElementType"> {
+  let cppNamespace = "::mlir";
+  let description = [{
+    This interface allows custom types to be used as element types in
+    DenseElementsAttr. Types implementing this interface define:
+    1. The byte size for element storage
+    2. How to convert between raw bytes and the corresponding Attribute
+
+    For example, a custom `!my_dialect.fixed_point` type might map to a
+    `my_dialect.fixed_point_attr` attribute. The interface methods handle
+    conversion between the attribute and raw storage bytes.
+
+    When this interface is implemented by an element type, DenseElementsAttr
+    uses the new type-first syntax:
+      `dense<tensor<2x!my.type> : [#my.val<1>, #my.val<2>]>`
+    instead of the traditional literal-first syntax:
+      `dense<[1, 2, 3]> : tensor<3xi32>`
+  }];
+
+  let methods = [
+    InterfaceMethod<
+      /*desc=*/[{
+        Return the number of bytes required to store one element in dense
+        storage. This must be a compile-time constant for the type.
+      }],
+      /*retTy=*/"size_t",
+      /*methodName=*/"getDenseElementByteSize",
+      /*args=*/(ins)
+    >,
+    InterfaceMethod<
+      /*desc=*/[{
+        Convert raw storage bytes to an attribute representing this element
+        value. The `rawData` array contains exactly `getDenseElementByteSize()`
+        bytes.
+      }],
+      /*retTy=*/"::mlir::Attribute",
+      /*methodName=*/"convertToAttribute",
+      /*args=*/(ins "::llvm::ArrayRef<char>":$rawData)
+    >,
+    InterfaceMethod<
+      /*desc=*/[{
+        Convert an attribute to raw storage bytes. Appends exactly
+        `getDenseElementByteSize()` bytes to `result`. Returns failure if the
+        attribute is incompatible with this element type.
+      }],
+      /*retTy=*/"::llvm::LogicalResult",
+      /*methodName=*/"convertFromAttribute",
+      /*args=*/(ins "::mlir::Attribute":$attr,
+                    "::llvm::SmallVectorImpl<char>&":$result)
+    >,
+  ];
 }
 
 #endif // MLIR_IR_BUILTINTYPEINTERFACES_TD_

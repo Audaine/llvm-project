@@ -18,6 +18,7 @@ include "TestDialect.td"
 include "TestAttrDefs.td"
 include "TestInterfaces.td"
 include "mlir/IR/BuiltinTypes.td"
+include "mlir/IR/BuiltinTypeInterfaces.td"
 include "mlir/Interfaces/DataLayoutInterfaces.td"
 include "mlir/Dialect/Bufferization/IR/BufferizationTypeInterfaces.td"
 
@@ -480,6 +481,21 @@ def TestBaseBody : Test_Type<"TestBaseBody",
 def TestTypeNewlineAndIndent : Test_Type<"TestTypeNewlineAndIndent"> {
   let mnemonic = "newline_and_indent";
   let hasCustomAssemblyFormat = 1;
+}
+
+//===----------------------------------------------------------------------===//
+// Test type for DenseElementTypeInterface
+//===----------------------------------------------------------------------===//
+
+def TestTypeDenseElement : Test_Type<"TestDenseElement",
+    [DeclareTypeInterfaceMethods<DenseElementTypeInterface>,
+     TensorElementTypeInterface]> {
+  let mnemonic = "dense_element";
+  let description = [{
+    A test type that implements DenseElementTypeInterface to test dense
+    elements with custom element types. Elements are stored as 32-bit integers.
+    Also implements TensorElementTypeInterface to be usable as tensor elements.
+  }];
 }
 
 #endif // TEST_TYPEDEFS

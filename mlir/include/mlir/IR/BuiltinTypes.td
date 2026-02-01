@@ -1294,6 +1294,13 @@ def Builtin_UnrankedTensor : Builtin_Type<"UnrankedTensor", "unranked_tensor", [
 // VectorType
 //===----------------------------------------------------------------------===//
 
+// TensorElementTypeInterface-based constraint for tensor element types.
+// This allows custom types implementing TensorElementTypeInterface to be used
+// as tensor elements.
+def Builtin_TensorTypeElementType : AnyTypeOf<[TensorElementTypeInterface]> {
+  let cppFunctionName = "isValidTensorTypeElementType";
+}
+
 // Note: VectorType uses this type constraint instead of a plain
 // VectorElementTypeInterface, so that methods with mlir::Type are generated.
 // We may want to drop this in future and require VectorElementTypeInterface

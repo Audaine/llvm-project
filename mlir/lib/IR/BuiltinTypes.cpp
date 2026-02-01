@@ -12,6 +12,7 @@
 #include "mlir/IR/AffineMap.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinDialect.h"
+#include "mlir/IR/BuiltinTypeInterfaces.h"
 #include "mlir/IR/Diagnostics.h"
 #include "mlir/IR/Dialect.h"
 #include "mlir/IR/TensorEncoding.h"
@@ -349,6 +350,7 @@ bool TensorType::isValidElementType(Type type) {
   // element type within that dialect.
   return llvm::isa<ComplexType, FloatType, IntegerType, OpaqueType, VectorType,
                    IndexType>(type) ||
+         llvm::isa<TensorElementTypeInterface>(type) ||
          !llvm::isa<BuiltinDialect>(type.getDialect());
 }
 
