@@ -799,7 +799,7 @@ mlir::Value CIRGenModule::getAddrOfGlobalVar(const VarDecl *d, mlir::Type ty,
 
   bool tlsAccess = d->getTLSKind() != VarDecl::TLS_None;
   cir::GlobalOp g = getOrCreateCIRGlobal(d, ty, isForDefinition);
-  mlir::Type ptrTy = builder.getPointerTo(g.getSymType());
+  mlir::Type ptrTy = builder.getPointerTo(g.getSymType(), g.getAddrSpaceAttr());
   return cir::GetGlobalOp::create(builder, getLoc(d->getSourceRange()), ptrTy,
                                   g.getSymNameAttr(), tlsAccess);
 }
@@ -809,8 +809,8 @@ cir::GlobalViewAttr CIRGenModule::getAddrOfGlobalVarAttr(const VarDecl *d) {
   mlir::Type ty = getTypes().convertTypeForMem(d->getType());
 
   cir::GlobalOp globalOp = getOrCreateCIRGlobal(d, ty, NotForDefinition);
-  assert(!cir::MissingFeatures::addressSpace());
-  cir::PointerType ptrTy = builder.getPointerTo(globalOp.getSymType());
+  cir::PointerType ptrTy =
+      builder.getPointerTo(globalOp.getSymType(), globalOp.getAddrSpaceAttr());
   return builder.getGlobalViewAttr(ptrTy, globalOp);
 }
 
