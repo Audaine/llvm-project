@@ -9,9 +9,8 @@ target triple = "aarch64-unknown-linux-gnu"
 define double @t1(double %x) {
 ; CHECK-LABEL: t1:
 ; CHECK:       // %bb.0: // %entry
-; CHECK-NEXT:    ptrue p0.d
-; CHECK-NEXT:    fcvtzs z0.d, p0/m, z0.d
-; CHECK-NEXT:    scvtf z0.d, p0/m, z0.d
+; CHECK-NEXT:    fcvtzs x8, d0
+; CHECK-NEXT:    scvtf d0, x8
 ; CHECK-NEXT:    ret
 ;
 ; USE-NEON-NO-GPRS-LABEL: t1:
@@ -34,9 +33,8 @@ entry:
 define float @t2(float %x) {
 ; CHECK-LABEL: t2:
 ; CHECK:       // %bb.0: // %entry
-; CHECK-NEXT:    ptrue p0.s
-; CHECK-NEXT:    fcvtzs z0.s, p0/m, z0.s
-; CHECK-NEXT:    scvtf z0.s, p0/m, z0.s
+; CHECK-NEXT:    fcvtzs w8, s0
+; CHECK-NEXT:    scvtf s0, w8
 ; CHECK-NEXT:    ret
 ;
 ; USE-NEON-NO-GPRS-LABEL: t2:
@@ -59,9 +57,8 @@ entry:
 define half @t3(half %x)  {
 ; CHECK-LABEL: t3:
 ; CHECK:       // %bb.0: // %entry
-; CHECK-NEXT:    ptrue p0.s
-; CHECK-NEXT:    fcvtzs z0.s, p0/m, z0.h
-; CHECK-NEXT:    scvtf z0.h, p0/m, z0.s
+; CHECK-NEXT:    fcvtzs w8, h0
+; CHECK-NEXT:    scvtf h0, w8
 ; CHECK-NEXT:    ret
 ;
 ; USE-NEON-NO-GPRS-LABEL: t3:
@@ -86,9 +83,8 @@ entry:
 define double @t4(double %x) {
 ; CHECK-LABEL: t4:
 ; CHECK:       // %bb.0: // %entry
-; CHECK-NEXT:    ptrue p0.d
-; CHECK-NEXT:    fcvtzu z0.d, p0/m, z0.d
-; CHECK-NEXT:    ucvtf z0.d, p0/m, z0.d
+; CHECK-NEXT:    fcvtzu x8, d0
+; CHECK-NEXT:    ucvtf d0, x8
 ; CHECK-NEXT:    ret
 ;
 ; USE-NEON-NO-GPRS-LABEL: t4:
@@ -111,9 +107,8 @@ entry:
 define float @t5(float %x) {
 ; CHECK-LABEL: t5:
 ; CHECK:       // %bb.0: // %entry
-; CHECK-NEXT:    ptrue p0.s
-; CHECK-NEXT:    fcvtzu z0.s, p0/m, z0.s
-; CHECK-NEXT:    ucvtf z0.s, p0/m, z0.s
+; CHECK-NEXT:    fcvtzu w8, s0
+; CHECK-NEXT:    ucvtf s0, w8
 ; CHECK-NEXT:    ret
 ;
 ; USE-NEON-NO-GPRS-LABEL: t5:
@@ -136,9 +131,8 @@ entry:
 define half @t6(half %x)  {
 ; CHECK-LABEL: t6:
 ; CHECK:       // %bb.0: // %entry
-; CHECK-NEXT:    ptrue p0.s
-; CHECK-NEXT:    fcvtzu z0.s, p0/m, z0.h
-; CHECK-NEXT:    ucvtf z0.h, p0/m, z0.s
+; CHECK-NEXT:    fcvtzu w8, h0
+; CHECK-NEXT:    ucvtf h0, w8
 ; CHECK-NEXT:    ret
 ;
 ; USE-NEON-NO-GPRS-LABEL: t6:

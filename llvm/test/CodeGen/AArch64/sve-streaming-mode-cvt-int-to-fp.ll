@@ -8,9 +8,7 @@ target triple = "aarch64-unknown-linux-gnu"
 define half @s32_to_f16(i32 %x) {
 ; CHECK-LABEL: s32_to_f16:
 ; CHECK:       // %bb.0: // %entry
-; CHECK-NEXT:    fmov s0, w0
-; CHECK-NEXT:    ptrue p0.s
-; CHECK-NEXT:    scvtf z0.h, p0/m, z0.s
+; CHECK-NEXT:    scvtf h0, w0
 ; CHECK-NEXT:    ret
 ;
 ; NONEON-NOSVE-LABEL: s32_to_f16:
@@ -26,9 +24,7 @@ entry:
 define float @s32_to_f32(i32 %x) {
 ; CHECK-LABEL: s32_to_f32:
 ; CHECK:       // %bb.0: // %entry
-; CHECK-NEXT:    fmov s0, w0
-; CHECK-NEXT:    ptrue p0.s
-; CHECK-NEXT:    scvtf z0.s, p0/m, z0.s
+; CHECK-NEXT:    scvtf s0, w0
 ; CHECK-NEXT:    ret
 ;
 ; NONEON-NOSVE-LABEL: s32_to_f32:
@@ -58,9 +54,7 @@ entry:
 define half @u32_to_f16(i32 %x) {
 ; CHECK-LABEL: u32_to_f16:
 ; CHECK:       // %bb.0: // %entry
-; CHECK-NEXT:    fmov s0, w0
-; CHECK-NEXT:    ptrue p0.s
-; CHECK-NEXT:    ucvtf z0.h, p0/m, z0.s
+; CHECK-NEXT:    ucvtf h0, w0
 ; CHECK-NEXT:    ret
 ;
 ; NONEON-NOSVE-LABEL: u32_to_f16:
@@ -76,9 +70,7 @@ entry:
 define float @u32_to_f32(i32 %x) {
 ; CHECK-LABEL: u32_to_f32:
 ; CHECK:       // %bb.0: // %entry
-; CHECK-NEXT:    fmov s0, w0
-; CHECK-NEXT:    ptrue p0.s
-; CHECK-NEXT:    ucvtf z0.s, p0/m, z0.s
+; CHECK-NEXT:    ucvtf s0, w0
 ; CHECK-NEXT:    ret
 ;
 ; NONEON-NOSVE-LABEL: u32_to_f32:
@@ -108,9 +100,7 @@ entry:
 define half @s64_to_f16(i64 %x) {
 ; CHECK-LABEL: s64_to_f16:
 ; CHECK:       // %bb.0: // %entry
-; CHECK-NEXT:    fmov d0, x0
-; CHECK-NEXT:    ptrue p0.d
-; CHECK-NEXT:    scvtf z0.h, p0/m, z0.d
+; CHECK-NEXT:    scvtf h0, x0
 ; CHECK-NEXT:    ret
 ;
 ; NONEON-NOSVE-LABEL: s64_to_f16:
@@ -126,9 +116,7 @@ entry:
 define float @s64_to_f32(i64 %x) {
 ; CHECK-LABEL: s64_to_f32:
 ; CHECK:       // %bb.0: // %entry
-; CHECK-NEXT:    fmov d0, x0
-; CHECK-NEXT:    ptrue p0.d
-; CHECK-NEXT:    scvtf z0.s, p0/m, z0.d
+; CHECK-NEXT:    scvtf s0, x0
 ; CHECK-NEXT:    ret
 ;
 ; NONEON-NOSVE-LABEL: s64_to_f32:
@@ -143,9 +131,7 @@ entry:
 define double @s64_to_f64(i64 %x) {
 ; CHECK-LABEL: s64_to_f64:
 ; CHECK:       // %bb.0: // %entry
-; CHECK-NEXT:    fmov d0, x0
-; CHECK-NEXT:    ptrue p0.d
-; CHECK-NEXT:    scvtf z0.d, p0/m, z0.d
+; CHECK-NEXT:    scvtf d0, x0
 ; CHECK-NEXT:    ret
 ;
 ; NONEON-NOSVE-LABEL: s64_to_f64:
@@ -160,9 +146,7 @@ entry:
 define half @u64_to_f16(i64 %x) {
 ; CHECK-LABEL: u64_to_f16:
 ; CHECK:       // %bb.0: // %entry
-; CHECK-NEXT:    fmov d0, x0
-; CHECK-NEXT:    ptrue p0.d
-; CHECK-NEXT:    ucvtf z0.h, p0/m, z0.d
+; CHECK-NEXT:    ucvtf h0, x0
 ; CHECK-NEXT:    ret
 ;
 ; NONEON-NOSVE-LABEL: u64_to_f16:
@@ -178,9 +162,7 @@ entry:
 define float @u64_to_f32(i64 %x) {
 ; CHECK-LABEL: u64_to_f32:
 ; CHECK:       // %bb.0: // %entry
-; CHECK-NEXT:    fmov d0, x0
-; CHECK-NEXT:    ptrue p0.d
-; CHECK-NEXT:    ucvtf z0.s, p0/m, z0.d
+; CHECK-NEXT:    ucvtf s0, x0
 ; CHECK-NEXT:    ret
 ;
 ; NONEON-NOSVE-LABEL: u64_to_f32:
@@ -195,9 +177,7 @@ entry:
 define double @u64_to_f64(i64 %x) {
 ; CHECK-LABEL: u64_to_f64:
 ; CHECK:       // %bb.0: // %entry
-; CHECK-NEXT:    fmov d0, x0
-; CHECK-NEXT:    ptrue p0.d
-; CHECK-NEXT:    ucvtf z0.d, p0/m, z0.d
+; CHECK-NEXT:    ucvtf d0, x0
 ; CHECK-NEXT:    ret
 ;
 ; NONEON-NOSVE-LABEL: u64_to_f64:
