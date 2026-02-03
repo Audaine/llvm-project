@@ -27,7 +27,6 @@ jobs:
         with:
           app-id: ${{ secrets.LLVM_TOKEN_GENERATOR_CLIENT_ID }}
           private-key: ${{ secrets.LLVM_TOKEN_GENERATOR_PRIVATE_KEY }}
-          repositories: llvm-project
           permission-members: read
           permission-contents: read
       
