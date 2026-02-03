@@ -21,10 +21,17 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --require-hashes -r ./llvm/utils/git/requirements.txt
+
+      - id: app-token
+        with:
+          app-id: ${{ secrets.LLVM_TOKEN_GENERATOR_CLIENT_ID }}
+          private-key: ${{ secrets.LLVM_TOKEN_GENERATOR_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          permission-members: read
       
       - name: Run Script
         env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_TASKS_USER_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           python3 .github/workflows/commit-access-review.py $GITHUB_TOKEN
 
